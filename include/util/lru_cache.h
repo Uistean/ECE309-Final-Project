@@ -49,13 +49,21 @@ public:
     //      pointer to its value (valid until the next put/erase/clear).
     // Miss: counts a miss and returns nullptr.
     const Value* get(const Key& key) {
+        auto it = map_.find(key);
+        if (it == map_.end()){
+            stats_.misses++;
+            return nullptr;
+        }
+        move_to_front(it->second);
+        stats_.hits++;
+        return &it->second->value;
+
         // TODO
         // Clue: look keys up with  auto it = map_.find(key);  and compare
         // with map_.end(). Do NOT use map_[key] to look up: on a miss it
         // INSERTS the key (with a nullptr node), size() grows, and a later
         // put() crashes far away from the real bug.
-        (void)key;
-        return nullptr;
+
     }
 
     // Key present: replaces its value and marks it most recently used (no
@@ -65,38 +73,88 @@ public:
     //   used. With capacity 0, does nothing.
     void put(const Key& key, Value value) {
         // TODO
+        if (capacity_ == 0){
+            return;
+        }
+        if(map_.find(key) != map_.end()){
+            Node* Nde = map_.at(key);
+            Nde->value = value;
+            move_to_front(Nde);
+            return;
+
+        }
+        if(map_.size() >= capacity_){
+                Node* temp = tail_;
+                unlink(temp);
+                map_.erase(temp->key);
+                stats_.evictions++;
+                delete temp;
+            }
+        Node* temp = new Node{key, std::move(value), nullptr,nullptr};    
+        map_[key] = temp;
+        push_front(temp);
+        return ;
         // Clue (eviction): victim = tail_; unlink it; erase victim->key from
         // the map; THEN delete victim. Reading victim->key after delete is a
         // heap-use-after-free (ASan may show it as a SEGV inside hashtable
         // code: look for the first stack frame in lru_cache.h).
         // Clue: create nodes with  new Node{key, std::move(value), nullptr, nullptr}.
-        (void)key;
-        (void)value;
+        
     }
 
     // True if the key is cached. Does NOT change recency or stats.
-    bool contains(const Key& key) const {
+    bool contains(const Key& key)const {
         // TODO
         // Clue: this function is const, so map_[key] does not even compile
         // ("discards qualifiers"). Use map_.find(key) != map_.end() or
         // map_.count(key).
-        (void)key;
-        return false;
+        return map_.find(key) != map_.end();
     }
 
     // Removes the key if present (not an eviction). Returns whether it was.
     bool erase(const Key& key) {
-        // TODO
-        (void)key;
-        return false;
+        if(map_.find(key) == map_.end()){
+            return false;
+        }
+        Node* Nde = map_.at(key);
+        unlink(Nde);
+        map_.erase(key);
+        delete(Nde);
+        return true;
+
+        
     }
 
     // Removes every entry. Stats are kept.
     void clear() {
+        if(head_ == nullptr){
+            return;
+        }
+        if(head_ == tail_){
+            delete(head_);
+            head_ = nullptr;
+            tail_ = nullptr;
+            map_.clear();
+            return;
+        }
+        Node * end = tail_;
+        Node * secndend = tail_->prev;
+
+        while(end->prev != nullptr){
+            delete(end);
+            end = secndend;
+            secndend = end->prev;
+
+        }
+        delete(head_);
+        head_ = nullptr;
+        tail_ = nullptr;
+        map_.clear();
         // TODO: delete every node, empty the map, reset head_/tail_.
         // Clue: save n->next in a local BEFORE  delete n;  a loop like
         //   for (Node* n = head_; n; n = n->next) delete n;
         // reads n->next from freed memory.
+        return;
     }
 
     std::size_t size() const noexcept { return map_.size(); }
@@ -118,7 +176,44 @@ private:
         Node* prev;
         Node* next;
     };
-
+    void unlink(Node* Nde){
+        if((Nde->prev == nullptr)&&((Nde->next == nullptr))){//head&tail
+            head_ = nullptr;
+            tail_ = nullptr;
+        }
+        else if(Nde->prev == nullptr){//head
+            Nde->next->prev = nullptr;
+            head_ = Nde->next;
+        }
+        else if(Nde->next == nullptr){//tail
+            Nde->prev->next = nullptr;
+            tail_ = Nde->prev;
+        }
+        else{//middle
+            Nde->prev->next = Nde->next;
+            Nde->next->prev = Nde->prev;
+        }
+    }
+    void push_front(Node* Nde){
+        if((head_ == nullptr)&&((tail_ == nullptr))){//head&tail both empty
+            head_ = Nde;
+            tail_ = Nde;
+            Nde->prev = nullptr;
+            Nde->next = nullptr;
+        }
+        else{
+            head_->prev = Nde;
+            Nde->prev = nullptr;
+            Nde->next = head_;
+            head_ = Nde;
+        }
+    }
+    void move_to_front( Node* Nde){
+        unlink(Nde);
+        Nde->next = nullptr;
+        Nde->prev = nullptr;
+        push_front(Nde);
+    }
     // ===== YOUR HELPERS AND MEMBERS =====
     // Suggested helpers: unlink(Node*), push_front(Node*), move_to_front(Node*).
     // Clue for unlink(n): four cases. If n has a prev, prev->next skips n,
