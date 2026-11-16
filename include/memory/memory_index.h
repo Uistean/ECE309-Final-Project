@@ -48,8 +48,11 @@ public:
 
     // Number of nodes on the longest root-to-leaf path: 0 for an empty
     // tree, 1 for a single node.
+
     std::size_t height() const;
 
+
+    
     // Calls fn on every record in ascending id order.
     void for_each_in_order(const std::function<void(const MemoryRecord&)>& fn) const;
 
@@ -57,6 +60,9 @@ public:
     void clear();
 
 private:
+
+
+
     // ===== YOUR REPRESENTATION GOES HERE =====
     // Suggested: a Node struct holding a MemoryRecord and left/right
     // pointers, a root pointer, and a node count (below), plus helpers that
@@ -80,7 +86,9 @@ private:
         Node*        left = nullptr;
         Node*        right = nullptr;
     };
-
-    Node*       root_ = nullptr;
+     static std::size_t height_recur( Node* Nde);
+     static void in_order_recur(const Node* Nde, const std::function<void(const MemoryRecord&)>& fn);
+    static void destroy(Node* Nde);
+     Node*       root_ = nullptr;
     std::size_t count_ = 0;
 };
