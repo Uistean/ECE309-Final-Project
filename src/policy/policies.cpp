@@ -4,11 +4,11 @@
 
 #include <utility>
 
-AllowlistPolicy::AllowlistPolicy(const std::vector<std::string>& programs) {
+AllowlistPolicy::AllowlistPolicy(const std::vector<std::string>& programs):programs_(programs.begin(),programs.end()) {
     // TODO: copy the names into programs_ (an std::unordered_set).
     // Clue: sets use insert(x), not push_back(x). One-liner: in the member
     // initializer list,  programs_(programs.begin(), programs.end()).
-    (void)programs;
+    
 }
 
 Decision AllowlistPolicy::evaluate(const CommandRequest& req) {
@@ -18,8 +18,14 @@ Decision AllowlistPolicy::evaluate(const CommandRequest& req) {
     // project is C++17.)  Build results with Decision::allow(reason, name())
     // and Decision::deny(reason, name()). Any non-empty reason is fine;
     // naming the program ("'rm' is not on the allowlist") helps the user.
-    (void)req;
-    return Decision::deny("not implemented", name());
+    if(programs_.count(req.program)>0){
+            return Decision::allow(req.program+"  allowed ", name());
+
+    }
+    return Decision::deny(req.program+" not allowed ", name());
+
+    
+    
 }
 
 ArgumentPatternPolicy::ArgumentPatternPolicy(std::vector<std::string> patterns)
@@ -31,20 +37,30 @@ Decision ArgumentPatternPolicy::evaluate(const CommandRequest& req) {
     // nothing, NOT 0 or false. "if (line.find(p))" is true for almost
     // everything. Compare with npos.
     // Clue: skip empty patterns: every string "contains" the empty string.
-    (void)req;
-    return Decision::deny("not implemented", name());
+    std::string curline = req.command_line();
+    for( auto i : patterns_){
+        if(i.empty()){
+
+        }else if(curline.find(i) != std::string::npos){
+                return Decision::deny("contains '" + i + "denied", name());
+        }
+    }
+    return Decision::allow( "all good" , name());
 }
 
-ConfirmPolicy::ConfirmPolicy(const std::vector<std::string>& programs) {
+ConfirmPolicy::ConfirmPolicy(const std::vector<std::string>& programs):programs_(programs.begin(),programs.end()) {
     // TODO
-    (void)programs;
+    
 }
 
 Decision ConfirmPolicy::evaluate(const CommandRequest& req) {
     // TODO: Decision::ask(...) for listed programs, Decision::allow(...) otherwise.
-    (void)req;
-    return Decision::deny("not implemented", name());
-}
+if(programs_.count(req.program)>0){
+    return Decision::ask(req.program+"  needs confirmed ", name());
+
+    }
+    return Decision::allow(req.program+"  allowed ", name());    }
+
 
 RateLimitPolicy::RateLimitPolicy(std::size_t max_commands, double window_seconds, const Clock& clock)
     : max_(max_commands), window_(window_seconds), clock_(clock) {}
