@@ -76,11 +76,21 @@ Decision RateLimitPolicy::evaluate(const CommandRequest& req) {
     //     behavior (UBSan says "misaligned address"): check empty() first.
     //  3. If the queue already holds max_ timestamps: Deny, and do NOT push.
     //  4. Otherwise push(now) and Allow. Only allowed requests are recorded.
-    (void)req;
-    (void)max_;
-    (void)window_;
-    (void)clock_;
-    return Decision::deny("not implemented", name());
-}
+    double now = clock_.now_seconds();
+    while(!times_.empty()){
+        double age = now - times_.front();
+        if(age <window_){
+            break;
+        }
+        times_.pop();
+    }
+    if(max_ <= times_.size()){
+        return Decision::deny("too many", name());
+    }
+    
+    (void) req;
+    times_.push(now);
+    return Decision::allow("allowed", name());
+    }
 
 std::size_t RateLimitPolicy::tracked() const noexcept { return times_.size(); }
