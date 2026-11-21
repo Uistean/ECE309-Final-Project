@@ -9,8 +9,11 @@ bool PolicyChain::add(std::unique_ptr<Policy> child) {
     // Clue: a unique_ptr cannot be copied. Check for nullptr first, then
     // children_.push_back(std::move(child)). Plain push_back(child) gives a
     // long error mentioning "use of deleted function unique_ptr(const unique_ptr&)".
-    (void)child;
-    return false;
+    if(child == nullptr){
+        return 0;
+    }
+    children_.push_back(std::move(child));
+    return 1;
 }
 
 std::size_t PolicyChain::size() const noexcept { return children_.size(); }
@@ -26,6 +29,27 @@ Decision PolicyChain::evaluate(const CommandRequest& req) {
     //    only the FIRST Ask; after the loop return that Ask if there was one.
     //  * The enum is nested: write Decision::Kind::Deny, not Deny or
     //    Decision::Deny.
-    (void)req;
-    return Decision::deny("not implemented", name());
+    if(children_.empty()){
+        return Decision::deny("empty thus denied", name());
+    }
+    bool have_asked = 0;
+    Decision saved;    
+    for(auto& child : children_){
+        Decision i = child->evaluate(req);
+        if( i.kind == Decision::Kind::Deny){
+            return i;
+        }
+        else if((!have_asked)&&(i.kind == Decision::Kind::Ask)){
+            saved = i;
+            have_asked = 1;
+
+        }
+
+    }
+    if(have_asked){
+        return saved;
+    }
+    return Decision::allow("all good", name());
+
 }
+
