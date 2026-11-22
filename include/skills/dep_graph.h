@@ -78,4 +78,5 @@ private:
     //            std::vector<std::string>& path, std::vector<std::string>* out,
     //            std::string* error) const;
     // (or write it as a free function in an anonymous namespace in the .cpp).
-};
+bool visitnde(const std::string& current, std::vector<std::string>* out,std::unordered_map<std::string, int>& colors,std::vector<std::string>& path, std::string* error) const;  
+            };
