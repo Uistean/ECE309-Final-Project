@@ -8,8 +8,12 @@ void SkillIndex::add(std::size_t doc_id, std::string_view text) {
     // TODO
     // Clue: use unique_tokens(text), not tokenize(text): a word that appears
     // twice in one document must post its doc_id only once.
-    (void)doc_id;
-    (void)text;
+    auto token = unique_tokens(text);
+
+    for(std::size_t i = 0; i<token.size(); i++){
+        postings_[token[i]].push_back(doc_id);
+    }
+    
 }
 
 const std::vector<std::size_t>* SkillIndex::postings(std::string_view word) const {
@@ -17,13 +21,19 @@ const std::vector<std::size_t>* SkillIndex::postings(std::string_view word) cons
     // Clue: the map's keys are std::string, so find(word) with a
     // string_view does not compile in C++17: use find(std::string(word)).
     // Return the address of the vector inside the map (&it->second).
-    (void)word;
-    return nullptr;
+    std::string temp = std::string(word);
+    auto look = postings_.find(temp);
+    if(look == postings_.end()){
+        return nullptr;
+    }
+    return &look->second;
+
+
 }
 
 std::size_t SkillIndex::word_count() const noexcept {
     // TODO
-    return 0;
+    return postings_.size();
 }
 
 std::vector<std::size_t> SkillIndex::search(std::string_view query, std::size_t k) const {
@@ -38,7 +48,45 @@ std::vector<std::size_t> SkillIndex::search(std::string_view query, std::size_t 
     //    equal scores the LARGER doc_id is worse.
     //  * Don't copy the lambda in skill_index_linear.cpp: that one is a
     //    std::sort order ("a comes first"), the opposite direction.
-    (void)query;
-    (void)k;
-    return {};
+    std::vector<std::size_t> kthings;
+    std::unordered_map<std::size_t, std::size_t> score;
+    std::vector<std::pair<std::size_t, std::size_t>> pairs;
+
+    std::vector<std::string> fix_query = unique_tokens(query);
+
+   for(auto i : fix_query){
+        auto look = postings_.find(i);
+
+        if(look != postings_.end()){
+            for(auto x: look->second){
+                score[x]++;
+            }
+        
+            
+        }
+        
+
+    }
+    for(auto i : score){
+        pairs.push_back({i.second, i.first});
+    }
+    auto worsedoc = [](const std::pair<std::size_t, std::size_t>& a,const std::pair<std::size_t, std::size_t>& b){
+        if(a.first == b.first){
+            if(a.second > b.second){
+                return 1;
+            }
+            else{return 0;}
+        }
+        if(a.first > b.first){
+            return 0;
+        }
+        return 1;
+
+    };
+    
+    auto bestdoc = top_k(pairs,k,worsedoc);
+    for(std::size_t i = 0; i < bestdoc.size(); i++){
+        kthings.push_back(bestdoc[i].second);
+    }
+    return kthings;
 }
