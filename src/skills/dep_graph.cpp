@@ -98,7 +98,7 @@ bool DepGraph::visitnde(const std::string& current, std::vector<std::string>* ou
             return 0;}
 
         if(colors[i]==1){
-            int start = 0;
+            size_t start = 0;
             while(path[start] != i){start++;}
 
             std::string erormessage = "cycle: ";
